@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Image Captioning and Color Detection</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #f4f4f4;
+            color: #333;
+        }
+
+        h1 {
+            text-align: center;
+            padding: 20px;
+            background-color: #4CAF50;
+            color: white;
+            margin: 0;
+        }
+
+        form {
+            max-width: 600px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+        }
+
+        input[type="file"] {
+            display: block;
+            margin-bottom: 16px;
+        }
+
+        input[type="submit"] {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        input[type="submit"]:hover {
+            background-color: #45a049;
+        }
+
+        h2 {
+            color: #4CAF50;
+        }
+
+        p {
+            background-color: white;
+            padding: 10px;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            display: block;
+            margin: 0 auto;
+        }
+
+        #color-info {
+            margin-top: 20px;
+            padding: 10px;
+            background-color: white;
+            border-radius: 4px;
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
+        }
+
+        #color-info span {
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Image Captioning and Color Detection</h1>
+    <form action="/" method="post" enctype="multipart/form-data">
+        <label for="dataset">Upload Color Dataset (Excel):</label>
+        <input type="file" id="dataset" name="dataset" required>
+        <label for="image">Upload Image:</label>
+        <input type="file" id="image" name="image" required>
+        <input type="submit" value="Submit">
+    </form>
+
+    {% if caption %}
+        <h2>Caption:</h2>
+        <p>{{ caption }}</p>
+    {% endif %}
+
+    {% if color_name %}
+        <h2>Color Name:</h2>
+        <p>{{ color_name }}</p>
+    {% endif %}
+
+    {% if image_path %}
+        <h2>Uploaded Image:</h2>
+        <img id="uploaded-image" src="{{ url_for('static', filename=image_path) }}" alt="Uploaded Image">
+        <canvas id="canvas" style="display:none;"></canvas>
+        <div id="color-info">
+            R: <span id="r-value"></span> G: <span id="g-value"></span> B: <span id="b-value"></span>
+        </div>
+    {% endif %}
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var image = document.getElementById('uploaded-image');
+            var canvas = document.getElementById('canvas');
+            var context = canvas.getContext('2d', { willReadFrequently: true });
+
+            var rValue = document.getElementById('r-value');
+            var gValue = document.getElementById('g-value');
+            var bValue = document.getElementById('b-value');
+
+            if (!image || !canvas || !context || !rValue || !gValue || !bValue) {
+                console.error('One or more elements are missing.');
+                return;
+            }
+
+            image.onload = function() {
+                canvas.width = image.width;
+                canvas.height = image.height;
+                context.drawImage(image, 0, 0, canvas.width, canvas.height);
+            };
+
+            image.addEventListener('mousemove', function(event) {
+                if (!image.complete) return;
+
+                var rect = image.getBoundingClientRect();
+                var x = event.clientX - rect.left;
+                var y = event.clientY - rect.top;
+                var pixel = context.getImageData(x, y, 1, 1).data;
+                var r = pixel[0];
+                var g = pixel[1];
+                var b = pixel[2];
+
+                if (rValue && gValue && bValue) {
+                    rValue.textContent = r;
+                    gValue.textContent = g;
+                    bValue.textContent = b;
+                }
+
+                fetch(`/color_name?r=${r}&g=${g}&b=${b}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        document.getElementById('color-info').innerHTML = `R: ${r} G: ${g} B: ${b} <br>Color Name: ${data}`;
+                    })
+                    .catch(error => console.error('Error fetching color name:', error));
+            });
+        });
+    </script>
+</body>
+</html>
